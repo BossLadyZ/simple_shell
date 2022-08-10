@@ -1,130 +1,155 @@
 #include "shell.h"
 
-#define SETOWD(V) (V = _strdup(_getenv("OLDPWD")))
 /**
- *  * change_dir - changes directory
- *   * @data: a pointer to the data structure
- *    *
- *     * Return: (Success) 0 is returned
- *      * ------- (Fail) negative number will returned
- *       */
-int change_dir(sh_t *data)
+ * exitt - exits the shell with or without a return of status n
+ * @arv: array of words of the entered line
+ */
+void exitt(char **arv)
 {
-	char *home;
+	int i, n;
 
-	home = _getenv("HOME");
-	if (data->args[1] == NULL)
+	if (arv[1])
 	{
-		SETOWD(data->oldpwd);
-		if (chdir(home) < 0)
-			return (FAIL);
-		return (SUCCESS);
+		n = _atoi(arv[1]);
+		if (n <= -1)
+			n = 2;
+		freearv(arv);
+		exit(n);
 	}
-	if (_strcmp(data->args[1], "-") == 0)
-	{
-		if (data->oldpwd == 0)
-		{
-			SETOWD(data->oldpwd);
-			if (chdir(home) < 0)
-				return (FAIL);
-		}
-		else
-		{
-			SETOWD(data->oldpwd);
-			if (chdir(data->oldpwd) < 0)
-				return (FAIL);
-		}
-	}
-	else
-	{
-		SETOWD(data->oldpwd);
-		if (chdir(data->args[1]) < 0)
-			return (FAIL);
-	}
-	return (SUCCESS);
+	for (i = 0; arv[i]; i++)
+		free(arv[i]);
+	free(arv);
+	exit(0);
 }
-#undef GETCWD
-/**
- *  * abort_prg - exit the program
- *   * @data: a pointer to the data structure
- *    *
- *     * Return: (Success) 0 is returned
- *      * ------- (Fail) negative number will returned
- *       */
-int abort_prg(sh_t *data __attribute__((unused)))
-{
-	int code, i = 0;
 
-	if (data->args[1] == NULL)
+/**
+ * _atoi - converts a string into an integer
+ *@s: pointer to a string
+ *Return: the integer
+ */
+int _atoi(char *s)
+{
+	int i, integer, sign = 1;
+
+	i = 0;
+	integer = 0;
+	while (!((s[i] >= '0') && (s[i] <= '9')) && (s[i] != '\0'))
 	{
-		free_data(data);
-		exit(errno);
-	}
-	while (data->args[1][i])
-	{
-		if (_isalpha(data->args[1][i++]) < 0)
+		if (s[i] == '-')
 		{
-			data->error_msg = _strdup("Illegal number\n");
-			return (FAIL);
+			sign = sign * (-1);
 		}
-	}
-	code = _atoi(data->args[1]);
-	free_data(data);
-	exit(code);
-}
-/**
- *  * display_help - display the help menu
- *   * @data: a pointer to the data structure
- *    *
- *     * Return: (Success) 0 is returned
- *      * ------- (Fail) negative number will returned
- *       */
-int display_help(sh_t *data)
-{
-	int fd, fw, rd = 1;
-	char c;
-
-	fd = open(data->args[1], O_RDONLY);
-	if (fd < 0)
-	{
-		data->error_msg = _strdup("no help topics match\n");
-		return (FAIL);
-	}
-	while (rd > 0)
-	{
-		rd = read(fd, &c, 1);
-		fw = write(STDOUT_FILENO, &c, rd);
-		if (fw < 0)
-		{
-			data->error_msg = _strdup("cannot write: permission denied\n");
-			return (FAIL);
-		}
-	}
-	PRINT("\n");
-	return (SUCCESS);
-}
-/**
- *  * handle_builtin - handle and manage the builtins cmd
- *   * @data: a pointer to the data structure
- *    *
- *     * Return: (Success) 0 is returned
- *      * ------- (Fail) negative number will returned
- *       */
-int handle_builtin(sh_t *data)
-{
-	blt_t blt[] = {
-		{"exit", abort_prg},
-		{"cd", change_dir},
-		{"help", display_help},
-		{NULL, NULL}
-	};
-	int i = 0;
-
-	while ((blt + i)->cmd)
-	{
-		if (_strcmp(data->args[0], (blt + i)->cmd) == 0)
-			return ((blt + i)->f(data));
 		i++;
 	}
-	return (FAIL);
+	while ((s[i] >= '0') && (s[i] <= '9'))
+	{
+		integer = (integer * 10) + (sign * (s[i] - '0'));
+		i++;
+	}
+	return (integer);
+}
+
+/**
+ * env - prints the current environment
+ * @arv: array of arguments
+ */
+void env(char **arv __attribute__ ((unused)))
+{
+
+	int i;
+
+	for (i = 0; environ[i]; i++)
+	{
+		_puts(environ[i]);
+		_puts("\n");
+	}
+
+}
+
+/**
+ * _setenv - Initialize a new environment variable, or modify an existing one
+ * @arv: array of entered words
+ */
+void _setenv(char **arv)
+{
+	int i, j, k;
+
+	if (!arv[1] || !arv[2])
+	{
+		perror(_getenv("_"));
+		return;
+	}
+
+	for (i = 0; environ[i]; i++)
+	{
+		j = 0;
+		if (arv[1][j] == environ[i][j])
+		{
+			while (arv[1][j])
+			{
+				if (arv[1][j] != environ[i][j])
+					break;
+
+				j++;
+			}
+			if (arv[1][j] == '\0')
+			{
+				k = 0;
+				while (arv[2][k])
+				{
+					environ[i][j + 1 + k] = arv[2][k];
+					k++;
+				}
+				environ[i][j + 1 + k] = '\0';
+				return;
+			}
+		}
+	}
+	if (!environ[i])
+	{
+
+		environ[i] = concat_all(arv[1], "=", arv[2]);
+		environ[i + 1] = '\0';
+
+	}
+}
+
+/**
+ * _unsetenv - Remove an environment variable
+ * @arv: array of entered words
+ */
+void _unsetenv(char **arv)
+{
+	int i, j;
+
+	if (!arv[1])
+	{
+		perror(_getenv("_"));
+		return;
+	}
+	for (i = 0; environ[i]; i++)
+	{
+		j = 0;
+		if (arv[1][j] == environ[i][j])
+		{
+			while (arv[1][j])
+			{
+				if (arv[1][j] != environ[i][j])
+					break;
+
+				j++;
+			}
+			if (arv[1][j] == '\0')
+			{
+				free(environ[i]);
+				environ[i] = environ[i + 1];
+				while (environ[i])
+				{
+					environ[i] = environ[i + 1];
+					i++;
+				}
+				return;
+			}
+		}
+	}
 }
