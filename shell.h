@@ -1,124 +1,116 @@
 #ifndef SHELL_H
 #define SHELL_H
 
-/* header files */
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
-#include <sys/stat.h>
 #include <sys/types.h>
-#include <sys/wait.h>
-#include <signal.h>
-#include <fcntl.h>
-#include <errno.h>
 
-int _putchar(char c);
-void _puts(char *str);
+/**
+ * struct Hshpack - struct containing important shell info
+ * @hshname: name of the shell (argv[0])
+ * @buffer: full buffer written in prompt
+ * @cmd: command written after prompt
+ * @options: options of the command
+ * @path: path of the cmd if found, else cmd itself
+ * @errnum: error count
+ * @exitnum: number of exit that the shell will have
+ * @relation: true or false for logical operators
+ * @run_able: check for running or not a command
+ * @next: singly list link
+ * @envCpy: copy of environment
+ * @unsetnull: check for setting environment to NULL
+ *
+ * Description: Struct containing important shell info
+ *
+ */
+typedef struct Hshpack
+{
+	char *hshname;        /* Name of shell argv[0] */
+	char *buffer;         /* complete line written in prompt */
+	char *cmd;            /* current command */
+	char **options;       /* options of current command */
+	char *path;           /* absolute path of command */
+	int *errnum;          /* error number for message */
+	int *exitnum;         /* exit number */
+	int *relation;        /* 0 Undef, 1 ||, 2 && */
+	int *run_able;        /* 0 False 1 True (Is able to run)*/
+	struct Hshpack *next; /*adress of next cmd to run */
+	char ***envCpy;       /* current environment */
+	int *unsetnull;       /*check for setting environment to NULL */
+
+} hshpack;
+
+/**
+ * struct b_ins - struct for built ins
+ * @cmd: built in
+ * @f: function of built in
+ *
+ * Description: Struct for calling built in functions
+ *
+ */
+typedef struct b_ins
+{
+	char *cmd;
+	ssize_t (*f)(hshpack *shpack);
+} b_ins;
+
+/**
+ * struct Helps - struct for built ins
+ * @built: built in command
+ * @h: help function of built in
+ *
+ * Description: Struct for calling built in functions
+ *
+ */
+typedef struct Helps
+{
+	char *built;
+	void (*h)(void);
+} helps;
+
+
+
+
+char *_getenv(const char *name, char **env);
+char *_path(char *cmd, char **env, hshpack *shpack);
+char *_strdup(char *str);
+char *str_concat(char *s1, char *s2);
 int _strlen(char *s);
-char *_strdup(char *str);
-char *concat_all(char *name, char *sep, char *value);
-
-char **splitstring(char *str, const char *delim);
-void execute(char **argv);
-void *_realloc(void *ptr, unsigned int old_size, unsigned int new_size);
-
-/* Global variable */
-extern char **environ;
-
-/* Macros */
-#define BUFSIZE 256
-#define TOKENSIZE 64
-#define PRINT(c) (write(STDOUT_FILENO, c, _strlen(c)))
-#define PROMPT "$ "
-#define SUCCESS (1)
-#define FAIL (-1)
-#define NEUTRAL (0)
-
-/* Struct */
-
-/**
- *  * struct sh_data - Global data structure
- *   * @line: the line input
- *    * @args: the arguments token
- *     * @error_msg: the global path
- *      * @cmd: the parsed command
- *       * @index: the command index
- *        * @oldpwd: the old path visited
- *         * @env: the environnment
- *          *
- *           * Description: A structure contains all the variables needed to manage
- *            * the program, memory and accessability
- *             */
-typedef struct sh_data
-{
-		char *line;
-			char **args;
-				char *cmd;
-					char *error_msg;
-						char *oldpwd;
-							unsigned long int index;
-								char *env;
-} sh_t;
-/**
- *  * struct builtin - Manage the builtin functions
- *   * @cmd: the command line on string form
- *    * @f: the associated function
- *     *
- *      * Description: this struct made to manage builtins cmd
- *       */
-typedef struct builtin
-{
-		char *cmd;
-			int (*f)(sh_t *data);
-} blt_t;
-/* ----------Process prototype------------*/
-int read_line(sh_t *);
-int split_line(sh_t *);
-int parse_line(sh_t *);
-int process_cmd(sh_t *);
-
-/* ----------String prototype------------*/
-char *_strdup(char *str);
-char *_strcat(char *first, char *second);
-int _strlen(char *str);
-char *_strchr(char *str, char c);
+char *_strcpy(char *dest, char *src);
+char *_strtok(char *str, const char *delim);
+char **getParameters(char *buffer, hshpack *shpack);
+int executeCmd(char *program, char *command[], char **env, hshpack *shpack);
+void signal_handler(int x);
+void signal_handler2(int x);
+int _getline(char **buffer, size_t *bufsize, int fd);
+void free_doubpoint(char **p);
+int _strlendp(char **s);
+char **checkInput(int ac, char **av, size_t *bufsize,
+		  char **buffer, hshpack *shpack);
+hshpack *set_struct(char *argv0, int *errn, int *exnum, int *relation,
+		    int *run_able, char ***env, int *unsetnull);
+int _error(int errn, hshpack *shpack, int exnum);
+void addCmd(hshpack *shpack, char *buffer, char *command, char **parameters);
+void addPathToCmd(hshpack *shpack, char *pathCmd);
+ssize_t built_ints(hshpack *shpack);
+ssize_t _exit_cmd(hshpack *shpack);
 int _strcmp(char *s1, char *s2);
+long _atoi(char *s);
+long _pow(long base, long pot);
+char **_copydoublep(char **p, int old_size, int new_size);
+int _strlendp(char **s);
+char **_setenv(char **env, char *variable, char *value, hshpack *shpack);
+char **_unsetenv(char **env, char *variable, hshpack *shpack);
+int _isdigit(int c);
+int _isnumber(char *s);
+ssize_t _cd_cmd(hshpack *shpack);
+char *deleteComment(char *str);
 
-/* ----------More String prototype-------*/
-char *_strcpy(char *dest, char *source);
 
-/* ----------Memory prototype------------*/
-void *_realloc(void *ptr, unsigned int old_size, unsigned int new_size);
-char *_memset(char *s, char byt, unsigned int n);
-char *_memcpy(char *dest, char *src, unsigned int n);
-int free_data(sh_t *);
+ssize_t _help_cmd(hshpack *shpack);
+void _puts(char *s);
+void help_unsetenv(void);
+void help_cd(void);
+void help_help(void);
+void help_alias(void);
+void printsHelp(void);
 
-/* ----------Tools prototype-------------*/
-void *fill_an_array(void *a, int el, unsigned int len);
-void signal_handler(int signo);
-char *_getenv(char *path_name);
-void index_cmd(sh_t *data);
-void array_rev(char *arr, int len);
-
-/* ----------More tools prototype--------*/
-char *_itoa(unsigned int n);
-int intlen(int num);
-int _atoi(char *c);
-int print_error(sh_t *data);
-int write_history(sh_t *data);
-int _isalpha(int c);
-
-/* -------------Builtins-----------------*/
-int abort_prg(sh_t *data);
-int change_dir(sh_t *data);
-int display_help(sh_t *data);
-int handle_builtin(sh_t *data);
-int check_builtin(sh_t *data);
-
-/* -------------Parse-----------------*/
-int is_path_form(sh_t *data);
-void is_short_form(sh_t *data);
-int is_builtin(sh_t *data);
-
-#endif /* SHELL_H */
+#endif

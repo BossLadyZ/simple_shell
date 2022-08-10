@@ -1,175 +1,121 @@
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <signal.h>
 #include "shell.h"
-
 /**
- * main - the main function
- * Return: (Success) 0 always
- * ------- (Fail) we drop out the looser :)
+ * main - Shell Program
+ * @ac: count of input parameters to program
+ * @av: parameters as input to program
+ * @env: unix environment
+ *
+ * Return: Should only exit through shell inputs
  */
-int main(void)
+int main(int ac, char **av, char **env)
 {
-	sh_t data;
-	int pl;
+	size_t bufsize = 0;
+	char **command, *pathCmd, *buffer = NULL;
+	hshpack *shpack;
+	int errn = 0, exnum = 0, relation = 0, run_able = 0, sizeEnv, enul = 0;
+	ssize_t isBuiltIn;
 
-	_memset((void *)&data, 0, sizeof(data));
+	if (ac > 1 || av == NULL)
+		write(2, "Please run with no arguments\n", 29), exit(127);
 	signal(SIGINT, signal_handler);
+	sizeEnv = _strlendp(env);
+	env = _copydoublep(env, sizeEnv, sizeEnv);
+	shpack = set_struct(av[0], &errn, &exnum, &relation, &run_able, &env, &enul);
 	while (1)
 	{
-		index_cmd(&data);
-		if (read_line(&data) < 0)
+		command = NULL;
+		command = checkInput(ac, av, &bufsize, &buffer, shpack);
+		if (!command)
+			continue;
+		addCmd(shpack, buffer, command[0], command);
+		isBuiltIn = built_ints(shpack);
+		if (isBuiltIn == -1 || isBuiltIn == 1)
+			continue;
+		pathCmd = _path(command[0], env, shpack);
+		addPathToCmd(shpack, pathCmd);
+		if (!pathCmd)
 		{
-			if (isatty(STDIN_FILENO))
-				PRINT("\n");
-			break;
-		}
-		if (split_line(&data) < 0)
-		{
-			free_data(&data);
+			free(command);
+			shpack->errnum[0] += 1, _error(0, shpack, 127);
 			continue;
 		}
-		pl = parse_line(&data);
-		if (pl == 0)
-		{
-			free_data(&data);
-			continue;
-		}
-		if (pl < 0)
-		{
-			print_error(&data);
-			continue;
-		}
-		if (process_cmd(&data) < 0)
-		{
-			print_error(&data);
-			break;
-		}
-		free_data(&data);
-	}
-	free_data(&data);
-	exit(EXIT_SUCCESS);
-}
+		else if (access(pathCmd, X_OK) == -1)
+			_error(1, shpack, 126);
+		else
+			executeCmd(pathCmd, command, env, shpack);
+		free(command);
+		free(pathCmd);
 
-/**
- * read_line - read a line from the standard input
- * @data: a pointer to the struct of data
- * Return: (Success) a positive number
- * ------- (Fail) a negative number
- */
-int read_line(sh_t *data)
-{
-	char *csr_ptr, *end_ptr, c;
-	size_t size = BUFSIZE, read_st, length, new_size;
-
-	data->line = malloc(size * sizeof(char));
-	if (data->line == NULL)
-		return (FAIL);
-	if (isatty(STDIN_FILENO))
-		PRINT(PROMPT);
-	for (csr_ptr = data->line, end_ptr = data->line + size;;)
-	{
-		read_st = read(STDIN_FILENO, &c, 1);
-		if (read_st == 0)
-			return (FAIL);
-		*csr_ptr++ = c;
-		if (c == '\n')
-		{
-			*csr_ptr = '\0';
-			return (SUCCESS);
-		}
-		if (csr_ptr + 2 >= end_ptr)
-		{
-			new_size = size * 2;
-			length = csr_ptr - data->line;
-			data->line = _realloc(data->line, size * sizeof(char),
-					new_size * sizeof(char));
-			if (data->line == NULL)
-				return (FAIL);
-			size = new_size;
-			end_ptr = data->line + size;
-			csr_ptr = data->line + length;
-		}
 	}
-}
-#define DELIMITER " \n\t\r\a\v"
-/**
- * split_line - splits line to tokens
- * @data: a pointer to the struct of data
- * Return: (Success) a positive number
- * ------- (Fail) a negative number
- */
-int split_line(sh_t *data)
-{
-	char *token;
-	size_t size = TOKENSIZE, new_size, i = 0;
-
-	if (_strcmp(data->line, "\n") == 0)
-		return (FAIL);
-	data->args = malloc(size * sizeof(char *));
-	if (data->args == NULL)
-		return (FAIL);
-	token = strtok(data->line, DELIMITER);
-	if (token == NULL)
-		return (FAIL);
-	while (token)
-	{
-		data->args[i++] =  token;
-		if (i + 2 >= size)
-		{
-			new_size = size * 2;
-			data->args = _realloc(data->args, size * sizeof(char *),
-					new_size * sizeof(char *));
-			if (data->args == NULL)
-				return (FAIL);
-			size = new_size;
-		}
-		token = strtok(NULL, DELIMITER);
-	}
-	data->args[i] = NULL;
+	free_doubpoint(*(shpack->envCpy)), free(shpack);
 	return (0);
 }
-#undef DELIMITER
-#define DELIMITER ":"
 /**
- * parse_line - parses arguments to valid command
- * @data: a pointer to the struct of data
- * Return: (Success) a positive number
- * ------- (Fail) a negative number
+ * set_struct - initializes shell struct
+ * @argv0: name of executable
+ * @errn: number of error message
+ * @exnum: exit number of shell
+ * @relation: relation for logical operators
+ * @run_able: if cmd should be run
+ * @env: current environment
+ * @unsetnull: check for setting environment to NULL
+ *
+ * Return: Pointer to struct
+ *
  */
-int parse_line(sh_t *data)
+hshpack *set_struct(char *argv0, int *errn, int *exnum,
+		    int *relation, int *run_able, char ***env, int *unsetnull)
 {
-	if (is_path_form(data) > 0)
-		return (SUCCESS);
-	if (is_builtin(data) > 0)
-	{
-		if (handle_builtin(data) < 0)
-			return (FAIL);
-		return (NEUTRAL);
-	}
-	is_short_form(data);
-	return (SUCCESS);
-}
-#undef DELIMITER
-/**
- * process_cmd - process command and execute process
- * @data: a pointer to the struct of data
- * Return: (Success) a positive number
- * ------- (Fail) a negative number
- */
-int process_cmd(sh_t *data)
-{
-	pid_t pid;
-	int status;
+	hshpack *shellpack;
 
-	pid = fork();
-	if (pid == 0)
-	{
-		signal(SIGINT, SIG_DFL);
-		if (execve(data->cmd, data->args, environ) < 0)
-			data->error_msg = _strdup("not found\n");
-		return (FAIL);
-	}
-	else
-	{
-		waitpid(pid, &status, WUNTRACED);
-	}
-	return (0);
+	shellpack = malloc(sizeof(struct Hshpack));
+	if (shellpack == 0)
+		return (write(2, "Memory Error", 22), NULL);
+	shellpack->hshname = argv0;
+	shellpack->buffer = NULL;
+	shellpack->cmd = NULL;
+	shellpack->options = NULL;
+	shellpack->path = NULL;
+	shellpack->errnum = errn;
+	shellpack->exitnum = exnum;
+	shellpack->relation = relation;
+	shellpack->run_able = run_able;
+	shellpack->envCpy = env;
+	shellpack->unsetnull = unsetnull;
+
+	return (shellpack);
+}
+/**
+ * addCmd - adds values to shell struct
+ * @shpack: shell struct
+ * @buffer: string written after prompt
+ * @command: command written after prompt
+ * @parameters: parameters of command
+ *
+ * Return: No return
+ */
+void addCmd(hshpack *shpack, char *buffer, char *command, char **parameters)
+{
+	shpack->buffer = buffer;
+	shpack->cmd = command;
+	shpack->options = parameters;
+}
+
+/**
+ * addPathToCmd - initializes path value of struct
+ * @shpack: shell struct
+ * @pathCmd: path of cmd written after propmpt
+ *
+ * Return: No Return
+ */
+void addPathToCmd(hshpack *shpack, char *pathCmd)
+{
+	shpack->path = pathCmd;
 }
