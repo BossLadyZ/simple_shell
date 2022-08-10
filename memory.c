@@ -1,13 +1,12 @@
 #include "shell.h"
 
 /**
- *  * _realloc - reallocates memory block
- *   * @ptr: pointer to the previous memory
- *    * @old_size: the old size
- *     * @new_size: the new size
- *      *
- *       * Return: a pointer to the newly allocated memory
- *        */
+ * _realloc - reallocates memory block
+ * @ptr: pointer to the previous memory
+ * @old_size: the old size
+ * @new_size: the new size
+ * Return: a pointer to the newly allocated memory
+ */
 void *_realloc(void *ptr, unsigned int old_size, unsigned int new_size)
 {
 	void *result;
@@ -35,13 +34,13 @@ void *_realloc(void *ptr, unsigned int old_size, unsigned int new_size)
 	return (result);
 }
 /**
- *  * _memset - fills a memory with constant byte
- *   * @s: pointer to memory area
- *    * @n: first n bytes
- *     * @byt: constant byte
- *      *
- *       * Return: A pointer to a character
- *        */
+ * _memset - fills a memory with constant byte
+ * @s: pointer to memory area
+ * @n: first n bytes
+ * @byt: constant byte
+ *
+ * Return: A pointer to a character
+ */
 char *_memset(char *s, char byt, unsigned int n)
 {
 	unsigned int i;
@@ -53,12 +52,12 @@ char *_memset(char *s, char byt, unsigned int n)
 	return (s);
 }
 /**
- *  * free_data - frees data
- *   * @data: the data structure
- *    *
- *     * Return: (Success) positive number
- *      * ------- (Fail) negative number
- *       */
+ * free_data - frees data
+ * @data: the data structure
+ *
+ * Return: (Success) positive number
+ * ------- (Fail) negative number
+ */
 int free_data(sh_t *data)
 {
 	free(data->line);
@@ -72,13 +71,13 @@ int free_data(sh_t *data)
 	return (0);
 }
 /**
- *  * _memcpy - cpies memory area
- *   * @dest: Destination memory area
- *    * @src: Source memory area
- *     * @n: Amount of memory byte
- *      *
- *       * Return: A pointer to dest
- *        */
+ * _memcpy - cpies memory area
+ * @dest: Destination memory area
+ * @src: Source memory area
+ * @n: Amount of memory byte
+ *
+ * Return: A pointer to dest
+ */
 char *_memcpy(char *dest, char *src, unsigned int n)
 {
 	unsigned int i;
